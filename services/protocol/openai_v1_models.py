@@ -4,7 +4,7 @@ from typing import Any
 
 from services.account_service import account_service
 from services.model_service import model_catalog_service
-from utils.helper import CODEX_IMAGE_MODEL
+from utils.helper import AGNES_IMAGE_MODEL, CODEX_IMAGE_MODEL
 
 
 def list_models() -> dict[str, Any]:
@@ -15,21 +15,34 @@ def list_models() -> dict[str, Any]:
     seen = {str(item.get("id") or "").strip() for item in data if isinstance(item, dict)}
     dynamic_models: set[str] = set()
     accounts = account_service.list_accounts()
-    web_image_accounts = [
+    chatgpt_image_accounts = [
         account
         for account in accounts
         if isinstance(account, dict)
+           and account_service.account_provider(account) == "chatgpt"
+           and account_service._is_image_account_available(account)
+    ]
+    agnes_image_accounts = [
+        account
+        for account in accounts
+        if isinstance(account, dict)
+           and account_service.account_provider(account) == "agnes"
+           and account_service._is_image_account_available(account)
     ]
     codex_types = {
         normalized
         for account in accounts
         if isinstance(account, dict)
+           and account_service.account_provider(account) == "chatgpt"
+           and account_service._is_image_account_available(account)
            and account_service._normalize_source_type(account.get("source_type")) == "codex"
            and (normalized := account_service._normalize_account_type(account.get("type")))
     }
 
-    if web_image_accounts:
+    if chatgpt_image_accounts:
         dynamic_models.add("gpt-image-2")
+    if agnes_image_accounts:
+        dynamic_models.add(AGNES_IMAGE_MODEL)
     if codex_types & {"Plus", "Team", "Pro"}:
         dynamic_models.add(CODEX_IMAGE_MODEL)
     if "Plus" in codex_types:

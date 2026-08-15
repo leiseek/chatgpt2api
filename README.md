@@ -85,6 +85,47 @@ bun install
 bun run dev
 ```
 
+运行测试与前端门禁：
+
+```bash
+# 默认只运行离线测试，live 用例会被跳过
+uv run pytest
+
+cd web
+bun run lint
+bun run typecheck
+bun run build
+```
+
+需要本地服务、已配置账号和真实上游网络的用例必须显式启用：
+
+```bash
+uv run pytest --run-live -m live
+```
+
+### Agnes Image 2.1 Flash
+
+账号管理页支持直接导入 Agnes API Key。导入后选择模型 `agnes-image-2.1-flash`，即可复用
+`/v1/images/generations`、`/v1/images/edits`、Chat Completions、Responses 和在线画图工作台。
+Agnes 属于外部计费账号，本地不会扣减 ChatGPT 图片额度；API Key 会在首次真实生图请求时由上游验证。
+
+```bash
+curl http://localhost:8000/v1/images/generations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <auth-key>" \
+  -d '{
+    "model": "agnes-image-2.1-flash",
+    "prompt": "电影感的上海雨夜街景",
+    "size": "2K",
+    "ratio": "16:9",
+    "response_format": "b64_json"
+  }'
+```
+
+`size` 支持 `1K`、`2K`、`3K`、`4K` 和兼容尺寸；`ratio` 支持 `1:1`、`3:4`、`4:3`、
+`16:9`、`9:16`、`2:3`、`3:2`、`21:9`。上游参数与限制以
+[Agnes Image 2.1 Flash 官方文档](https://www.agnes-ai.com/zh-Hans/docs/agnes-image-21-flash.md) 为准。
+
 后续更新新版本：
 
 ```bash
@@ -120,7 +161,7 @@ environment:
 - 兼容面向图片场景的 `POST /v1/chat/completions`
 - 兼容面向图片场景的 `POST /v1/responses`
 - `GET /v1/models` 返回 `gpt-image-2`、`codex-gpt-image-2`、`auto`、`gpt-5`、`gpt-5-1`、`gpt-5-2`、`gpt-5-3`、`gpt-5-3-mini`、
-  `gpt-5-mini`
+  `gpt-5-mini`；导入 Agnes API Key 后动态增加 `agnes-image-2.1-flash`
 - 支持通过 `n` 返回多张生成结果
 - 支持生成可编辑 PPT 文件
 - 支持生成可编辑 PSD 文件
@@ -130,7 +171,7 @@ environment:
 ### 在线画图功能
 
 - 内置在线画图工作台，支持生成、图片编辑与多图组图编辑
-- 支持 `gpt-image-2`、`codex-gpt-image-2`、`auto`、`gpt-5`、`gpt-5-1`、`gpt-5-2`、`gpt-5-3`、`gpt-5-3-mini`、`gpt-5-mini` 模型选择
+- 支持 `gpt-image-2`、`codex-gpt-image-2`、`agnes-image-2.1-flash`、`auto`、`gpt-5`、`gpt-5-1`、`gpt-5-2`、`gpt-5-3`、`gpt-5-3-mini`、`gpt-5-mini` 模型选择
 - 编辑模式支持参考图上传
 - 前端支持多图生成交互
 - 本地保存图片会话历史，支持回看、删除和清空
@@ -148,7 +189,7 @@ environment:
 - 支持网页端配置全局 HTTP / HTTPS / SOCKS5 / SOCKS5H 代理
 - 支持 WARP / FlareSolverr 稳定代理运行时
 - 支持搜索、筛选、批量刷新、导出、手动编辑和清理账号
-- 支持四种导入方式：本地 CPA JSON 文件导入、远程 CPA 服务器导入、`sub2api` 服务器导入、`access_token` 导入
+- 支持本地 CPA JSON、远程 CPA、`sub2api`、`access_token`、OAuth 和 Agnes API Key 等导入方式
 - 支持在设置页配置 `sub2api` 服务器，筛选并批量导入其中的 OpenAI OAuth 账号
 
 ### 实验性 / 规划中
@@ -196,7 +237,7 @@ curl http://localhost:8000/v1/models \
 
 | 字段   | 说明                                                                                                         |
 |:-----|:-----------------------------------------------------------------------------------------------------------|
-| 返回模型 | `gpt-image-2`、`codex-gpt-image-2`、`auto`、`gpt-5`、`gpt-5-1`、`gpt-5-2`、`gpt-5-3`、`gpt-5-3-mini`、`gpt-5-mini` |
+| 返回模型 | 根据可用账号动态返回；导入 Agnes API Key 后会包含 `agnes-image-2.1-flash`                                                    |
 | 接入场景 | 可接入 Cherry Studio、New API 等上游或客户端                                                                          |
 
 <br>
@@ -230,6 +271,8 @@ curl http://localhost:8000/v1/images/generations \
 | `model`           | 图片模型，当前可用值以 `/v1/models` 返回结果为准，推荐使用 `gpt-image-2` |
 | `prompt`          | 图片生成提示词                                            |
 | `n`               | 生成数量，当前后端限制为 `1-4`                                 |
+| `size`            | 可选；Agnes 支持 `1K`、`2K`、`3K`、`4K` 或兼容尺寸                |
+| `ratio`           | 可选；Agnes 支持 `1:1`、`16:9`、`9:16` 等比例                    |
 | `response_format` | 当前请求模型中包含该字段，默认值为 `b64_json`                       |
 
 <br>
@@ -275,6 +318,8 @@ curl http://localhost:8000/v1/images/edits \
 | `model`     | 图片模型， `gpt-image-2`                           |
 | `prompt`    | 图片编辑提示词                                       |
 | `n`         | 生成数量，当前后端限制为 `1-4`                            |
+| `size`      | 可选；Agnes 支持 `1K`、`2K`、`3K`、`4K` 或兼容尺寸           |
+| `ratio`     | 可选；Agnes 支持 `1:1`、`16:9`、`9:16` 等比例               |
 | `image`     | 需要编辑的图片文件，使用 multipart/form-data 上传           |
 | `images`    | JSON 图片引用数组，支持 `{"image_url": "https://..."}` |
 | `image_url` | 表单模式下也可直接传图片链接，支持重复字段传多张图                     |

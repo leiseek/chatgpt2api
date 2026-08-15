@@ -5,6 +5,7 @@ import unittest
 from unittest import mock
 
 import requests
+import pytest
 
 from services.protocol import openai_v1_models
 
@@ -25,9 +26,9 @@ class ModelListTests(unittest.TestCase):
                 openai_v1_models.account_service,
                 "list_accounts",
                 return_value=[
-                    {"access_token": "token-free", "type": "free"},
-                    {"access_token": "token-web-team", "type": "Team", "source_type": "web"},
-                    {"access_token": "token-codex-team", "type": "Team", "source_type": "codex"},
+                    {"access_token": "token-free", "type": "free", "status": "正常", "quota": 1},
+                    {"access_token": "token-web-team", "type": "Team", "source_type": "web", "status": "正常", "quota": 1},
+                    {"access_token": "token-codex-team", "type": "Team", "source_type": "codex", "status": "正常", "quota": 1},
                 ],
             ),
         ):
@@ -51,7 +52,7 @@ class ModelListTests(unittest.TestCase):
                 openai_v1_models.account_service,
                 "list_accounts",
                 return_value=[
-                    {"access_token": "token-web-plus", "type": "Plus", "source_type": "web"},
+                    {"access_token": "token-web-plus", "type": "Plus", "source_type": "web", "status": "正常", "quota": 1},
                 ],
             ),
         ):
@@ -62,12 +63,14 @@ class ModelListTests(unittest.TestCase):
         self.assertNotIn("codex-gpt-image-2", ids)
         self.assertNotIn("plus-codex-gpt-image-2", ids)
 
+    @pytest.mark.live
     def test_list_models_function(self):
         """测试直接调用服务层获取模型列表。"""
         result = openai_v1_models.list_models()
         print("function result:")
         print(json.dumps(result, ensure_ascii=False, indent=2))
 
+    @pytest.mark.live
     def test_list_models_http(self):
         """测试通过 HTTP 接口获取模型列表。"""
         response = requests.get(

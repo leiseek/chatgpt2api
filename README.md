@@ -103,6 +103,9 @@ bun run build
 uv run pytest --run-live -m live
 ```
 
+后续二次开发、同步官方版本、处理冲突和发布前端静态产物，请参阅
+[二次开发与官方同步手册](docs/development-and-upstream-sync.zh-CN.md)。
+
 ### Agnes Image 2.1 Flash
 
 账号管理页支持直接导入 Agnes API Key。导入后选择模型 `agnes-image-2.1-flash`，即可复用

@@ -30,6 +30,8 @@ CHATGPT_BASE_IMAGE_MODELS = {
 CODEX_IMAGE_MODEL = "codex-gpt-image-2.5"
 CODEX_IMAGE_MODELS = {
     "codex-gpt-image-2.5",
+    "codex-gpt-image-2.5-flare",
+    "codex-gpt-image-2.5-sunburst",
     "codex-gpt-image-2",
 }
 AGNES_IMAGE_MODEL = "agnes-image-2.1-flash"

@@ -69,7 +69,12 @@ DEFAULT_CLIENT_VERSION = "prod-a194cd50d4416d3c0b47c740f206b12ce60f5887"
 DEFAULT_CLIENT_BUILD_NUMBER = "6708908"
 DEFAULT_POW_SCRIPT = "https://chatgpt.com/backend-api/sentinel/sdk.js"
 CODEX_IMAGE_MODEL = "codex-gpt-image-2.5"
-CODEX_IMAGE_MODELS = {"codex-gpt-image-2.5", "codex-gpt-image-2"}
+CODEX_IMAGE_MODELS = {
+    "codex-gpt-image-2.5",
+    "codex-gpt-image-2.5-flare",
+    "codex-gpt-image-2.5-sunburst",
+    "codex-gpt-image-2",
+}
 CODEX_RESPONSES_MODEL = "gpt-5.5"
 SEARCH_MODEL = "gpt-5-5"
 SEARCH_TIMEOUT_SECS = 300.0

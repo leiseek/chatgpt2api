@@ -448,7 +448,7 @@ export function ImageComposer({
                             <div className="flex flex-wrap gap-1.5 text-[11px] font-medium">
                               {hasChatGPT && (
                                 <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
-                                  ChatGPT · {imageModels.find(isChatGPTModelName) || "gpt-image-2"}
+                                  ChatGPT · {imageModels.find((m) => m === "gpt-image-2.5") || imageModels.find(isChatGPTModelName) || "gpt-image-2.5"}
                                 </span>
                               )}
                               {hasAgnes && (
@@ -473,7 +473,7 @@ export function ImageComposer({
                           <div className="mb-3">
                             <div className="mb-2 text-sm font-medium text-stone-900">ChatGPT 模型</div>
                             <Select
-                              value={isChatGPTModel ? imageModel : (imageModels.find(isChatGPTModelName) || "gpt-image-2")}
+                              value={isChatGPTModel ? imageModel : (imageModels.find((m) => m === "gpt-image-2.5") || imageModels.find(isChatGPTModelName) || "gpt-image-2.5")}
                               onValueChange={(value) => {
                                 onImageModelChange(value as ImageModel);
                               }}
@@ -488,8 +488,9 @@ export function ImageComposer({
                                   />
                                   <span className="truncate">
                                     {modelOptions.find((opt) => opt.value === imageModel && isChatGPTModelName(opt.value))?.label ||
+                                      imageModels.find((m) => m === "gpt-image-2.5") ||
                                       imageModels.find(isChatGPTModelName) ||
-                                      "gpt-image-2"}
+                                      "gpt-image-2.5"}
                                   </span>
                                 </div>
                               </SelectTrigger>

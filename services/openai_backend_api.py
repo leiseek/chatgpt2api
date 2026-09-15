@@ -68,7 +68,8 @@ class ChatRequirements:
 DEFAULT_CLIENT_VERSION = "prod-a194cd50d4416d3c0b47c740f206b12ce60f5887"
 DEFAULT_CLIENT_BUILD_NUMBER = "6708908"
 DEFAULT_POW_SCRIPT = "https://chatgpt.com/backend-api/sentinel/sdk.js"
-CODEX_IMAGE_MODEL = "codex-gpt-image-2"
+CODEX_IMAGE_MODEL = "codex-gpt-image-2.5"
+CODEX_IMAGE_MODELS = {"codex-gpt-image-2.5", "codex-gpt-image-2"}
 CODEX_RESPONSES_MODEL = "gpt-5.5"
 SEARCH_MODEL = "gpt-5-5"
 SEARCH_TIMEOUT_SECS = 300.0
@@ -566,9 +567,9 @@ class OpenAIBackendAPI:
         _, base_model = split_image_model(model)
         if not base_model:
             return "auto", ""
-        if base_model == "gpt-image-2":
+        if base_model in {"gpt-image-2.5", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"}:
             upstream_model = config.default_upstream_model_name
-        elif base_model == CODEX_IMAGE_MODEL:
+        elif base_model in CODEX_IMAGE_MODELS:
             upstream_model = base_model
         else:
             return "auto", ""
@@ -778,11 +779,19 @@ class OpenAIBackendAPI:
             images: list[str] | None = None,
             size: str | None = None,
             quality: str = "auto",
+            model: str | None = None,
     ) -> Iterator[Dict[str, Any]]:
         if not self.access_token:
             raise RuntimeError("access_token is required for codex image endpoints")
         self._ensure_codex_source_account()
         path = "/backend-api/codex/responses"
+        tool_model = "gpt-image-2.5"
+        if model:
+            _, base_model = split_image_model(model)
+            if base_model in {"gpt-image-2.5", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"}:
+                tool_model = base_model
+            elif base_model in CODEX_IMAGE_MODELS:
+                tool_model = base_model.removeprefix("codex-")
         payload = {
             "model": CODEX_RESPONSES_MODEL,
             "instructions": CODEX_RESPONSES_INSTRUCTIONS,
@@ -790,7 +799,7 @@ class OpenAIBackendAPI:
             "input": self._codex_image_input(prompt, images or []),
             "tools": [{
                 "type": "image_generation",
-                "model": "gpt-image-2",
+                "model": tool_model,
                 "action": "edit" if images else "generate",
                 "size": str(size or "1024x1024"),
                 "quality": str(quality or "auto"),

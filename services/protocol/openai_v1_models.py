@@ -4,7 +4,7 @@ from typing import Any
 
 from services.account_service import account_service
 from services.model_service import model_catalog_service
-from utils.helper import AGNES_IMAGE_MODEL, CODEX_IMAGE_MODEL, GEMINI_IMAGE_MODEL
+from utils.helper import AGNES_IMAGE_MODEL, CHATGPT_BASE_IMAGE_MODELS, CODEX_IMAGE_MODELS, GEMINI_IMAGE_MODEL
 
 
 def list_models() -> dict[str, Any]:
@@ -47,7 +47,7 @@ def list_models() -> dict[str, Any]:
     }
 
     if chatgpt_image_accounts:
-        dynamic_models.add("gpt-image-2")
+        dynamic_models.update(CHATGPT_BASE_IMAGE_MODELS)
     if agnes_image_accounts:
         dynamic_models.add(AGNES_IMAGE_MODEL)
     if gemini_image_accounts:
@@ -55,13 +55,14 @@ def list_models() -> dict[str, Any]:
         dynamic_models.add("imagen-3")
         dynamic_models.add("imagen-3.0-generate-002")
     if codex_types & {"Plus", "Team", "Pro"}:
-        dynamic_models.add(CODEX_IMAGE_MODEL)
-    if "Plus" in codex_types:
-        dynamic_models.add(f"plus-{CODEX_IMAGE_MODEL}")
-    if "Team" in codex_types:
-        dynamic_models.add(f"team-{CODEX_IMAGE_MODEL}")
-    if "Pro" in codex_types:
-        dynamic_models.add(f"pro-{CODEX_IMAGE_MODEL}")
+        dynamic_models.update(CODEX_IMAGE_MODELS)
+    for codex_model in CODEX_IMAGE_MODELS:
+        if "Plus" in codex_types:
+            dynamic_models.add(f"plus-{codex_model}")
+        if "Team" in codex_types:
+            dynamic_models.add(f"team-{codex_model}")
+        if "Pro" in codex_types:
+            dynamic_models.add(f"pro-{codex_model}")
 
     for model in sorted(dynamic_models):
         if model not in seen:

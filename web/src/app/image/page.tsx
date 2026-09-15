@@ -55,7 +55,7 @@ const IMAGE_MODEL_STORAGE_KEY = "chatgpt2api:image_last_model";
 const IMAGE_COUNT_STORAGE_KEY = "chatgpt2api:image_last_count";
 const SCROLL_POSITIONS_STORAGE_KEY = "chatgpt2api:image_scroll_positions";
 const SCROLL_TO_LATEST_THRESHOLD = 160;
-const CHATGPT_IMAGE_MODEL = "gpt-image-2";
+const CHATGPT_IMAGE_MODEL = "gpt-image-2.5";
 const AGNES_IMAGE_MODEL = "agnes-image-2.1-flash";
 const GEMINI_IMAGE_MODEL = "gemini-image-2.5-flash";
 
@@ -154,17 +154,25 @@ function dataUrlToFile(dataUrl: string, fileName: string, mimeType?: string) {
 }
 
 function filterImageModels(items: Model[]): ImageModel[] {
-  return items
+  const models = items
     .map((item) => String(item.id || "").trim())
     .filter((id, index, list) => id.toLowerCase().includes("image") && list.indexOf(id) === index);
+  return models.sort((a, b) => {
+    if (a === CHATGPT_IMAGE_MODEL) return -1;
+    if (b === CHATGPT_IMAGE_MODEL) return 1;
+    return 0;
+  });
 }
 
 function normalizeStoredImageModel(value: string | null, availableModels: ImageModel[]): ImageModel {
   const normalized = String(value || "").trim();
-  if (normalized && availableModels.includes(normalized)) {
+  if (normalized && normalized !== "gpt-image-2" && availableModels.includes(normalized)) {
     return normalized;
   }
-  return availableModels[0] || "gpt-image-2";
+  if (availableModels.includes(CHATGPT_IMAGE_MODEL)) {
+    return CHATGPT_IMAGE_MODEL;
+  }
+  return availableModels[0] || CHATGPT_IMAGE_MODEL;
 }
 
 function isAgnesImageModel(model: ImageModel) {
@@ -507,8 +515,8 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
   const [imageWidth, setImageWidth] = useState("1024");
   const [imageHeight, setImageHeight] = useState("1024");
   const [imageQuality, setImageQuality] = useState("auto");
-  const [imageModel, setImageModel] = useState<ImageModel>("gpt-image-2");
-  const [imageModels, setImageModels] = useState<ImageModel[]>(["gpt-image-2"]);
+  const [imageModel, setImageModel] = useState<ImageModel>(CHATGPT_IMAGE_MODEL);
+  const [imageModels, setImageModels] = useState<ImageModel[]>([CHATGPT_IMAGE_MODEL]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [referenceImageFiles, setReferenceImageFiles] = useState<File[]>([]);
   const [referenceImages, setReferenceImages] = useState<StoredReferenceImage[]>([]);
@@ -736,14 +744,14 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
         setImageModels(available);
         const storedModel = typeof window !== "undefined" ? window.localStorage.getItem(IMAGE_MODEL_STORAGE_KEY) : null;
         setImageModel((current) => {
-          if (available.includes(current)) {
+          if (available.includes(current) && current !== "gpt-image-2") {
             return current;
           }
           return normalizeStoredImageModel(storedModel, available);
         });
       } catch {
         if (!cancelled) {
-          setImageModels(["gpt-image-2"]);
+          setImageModels([CHATGPT_IMAGE_MODEL]);
         }
       }
     };

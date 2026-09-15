@@ -152,7 +152,7 @@ function normalizeTurn(turn: ImageTurn & Record<string, unknown>): ImageTurn {
   return {
     id: String(turn.id || `${Date.now()}`),
     prompt: String(turn.prompt || ""),
-    model: (turn.model as ImageModel) || "gpt-image-2",
+    model: (turn.model as ImageModel) || "gpt-image-2.5",
     models: Array.isArray(turn.models)
       ? turn.models.filter((model): model is ImageModel => typeof model === "string" && model.trim().length > 0)
       : undefined,
@@ -185,7 +185,7 @@ function normalizeConversation(conversation: ImageConversation & Record<string, 
         normalizeTurn({
           id: String(conversation.id || `${Date.now()}`),
           prompt: String(conversation.prompt || ""),
-          model: (conversation.model as ImageModel) || "gpt-image-2",
+          model: (conversation.model as ImageModel) || "gpt-image-2.5",
           mode: conversation.mode === "edit" ? "edit" : "generate",
           referenceImages: getLegacyReferenceImages(conversation),
           count: Number(conversation.count || 1),

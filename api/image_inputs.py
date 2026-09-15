@@ -15,6 +15,7 @@ from fastapi.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
 from services.proxy_service import proxy_settings
+from utils.helper import DEFAULT_IMAGE_MODEL
 from utils.url_safety import (
     ResponseBodyTooLarge,
     UnsafeOutboundURL,
@@ -75,7 +76,7 @@ def _payload_from_fields(fields: dict[str, Any]) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail={"error": "prompt is required"})
     payload = {
         "prompt": prompt,
-        "model": _clean(fields.get("model"), "gpt-image-2"),
+        "model": _clean(fields.get("model"), DEFAULT_IMAGE_MODEL),
         "n": _parse_count(fields.get("n")),
         "size": _clean(fields.get("size")) or None,
         "ratio": _clean(fields.get("ratio")) or None,

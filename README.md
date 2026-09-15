@@ -163,18 +163,18 @@ environment:
 - 兼容 `POST /v1/images/edits` 图片编辑接口
 - 兼容面向图片场景的 `POST /v1/chat/completions`
 - 兼容面向图片场景的 `POST /v1/responses`
-- `GET /v1/models` 返回 `gpt-image-2`、`codex-gpt-image-2`、`auto`、`gpt-5`、`gpt-5-1`、`gpt-5-2`、`gpt-5-3`、`gpt-5-3-mini`、
-  `gpt-5-mini`；导入 Agnes API Key 后动态增加 `agnes-image-2.1-flash`
+- `GET /v1/models` 返回 `gpt-image-2.5`、`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`gpt-image-2`、`codex-gpt-image-2.5`、`codex-gpt-image-2`、`auto`、`gpt-5`、`gpt-5-1`、`gpt-5-2`、`gpt-5-3`、`gpt-5-3-mini`、
+  `gpt-5-mini`；导入 Agnes API Key 后动态增加 `agnes-image-2.1-flash`；导入 Gemini 后动态增加 Gemini / Imagen 模型
 - 支持通过 `n` 返回多张生成结果
 - 支持生成可编辑 PPT 文件
 - 支持生成可编辑 PSD 文件
-- 支持 Codex 中的画图接口逆向，仅 `Plus` / `Team` / `Pro` 订阅可用，模型别名为 `codex-gpt-image-2`，如有需要可自行在其他场景映射回
-  `gpt-image-2`，用于和官网画图区分；也就意味着同一账号会同时有官网和 Codex 两份生图额度
+- 支持 Codex 中的画图接口逆向，仅 `Plus` / `Team` / `Pro` 订阅可用，模型别名为 `codex-gpt-image-2.5`（兼容 `codex-gpt-image-2`），如有需要可自行在其他场景映射回
+  `gpt-image-2.5` / `gpt-image-2`，用于和官网画图区分；也就意味着同一账号会同时有官网和 Codex 两份生图额度
 
 ### 在线画图功能
 
 - 内置在线画图工作台，支持生成、图片编辑与多图组图编辑
-- 支持 `gpt-image-2`、`codex-gpt-image-2`、`agnes-image-2.1-flash`、`auto`、`gpt-5`、`gpt-5-1`、`gpt-5-2`、`gpt-5-3`、`gpt-5-3-mini`、`gpt-5-mini` 模型选择
+- 支持 `gpt-image-2.5`（默认）、`gpt-image-2.5-flare`、`gpt-image-2.5-sunburst`、`codex-gpt-image-2.5`、`gpt-image-2`、`agnes-image-2.1-flash`、`auto` 等模型选择
 - 编辑模式支持参考图上传
 - 前端支持多图生成交互
 - 本地保存图片会话历史，支持回看、删除和清空
@@ -258,7 +258,7 @@ curl http://localhost:8000/v1/images/generations \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <auth-key>" \
   -d '{
-    "model": "gpt-image-2",
+    "model": "gpt-image-2.5",
     "prompt": "一只漂浮在太空里的猫",
     "n": 1,
     "response_format": "b64_json"
@@ -271,7 +271,7 @@ curl http://localhost:8000/v1/images/generations \
 
 | 字段                | 说明                                                 |
 |:------------------|:---------------------------------------------------|
-| `model`           | 图片模型，当前可用值以 `/v1/models` 返回结果为准，推荐使用 `gpt-image-2` |
+| `model`           | 图片模型，当前可用值以 `/v1/models` 返回结果为准，推荐使用 `gpt-image-2.5` |
 | `prompt`          | 图片生成提示词                                            |
 | `n`               | 生成数量，当前后端限制为 `1-4`                                 |
 | `size`            | 可选；Agnes 支持 `1K`、`2K`、`3K`、`4K` 或兼容尺寸                |
@@ -291,7 +291,7 @@ OpenAI 兼容图片编辑接口，可上传图片文件，也可按官方 JSON �
 ```bash
 curl http://localhost:8000/v1/images/edits \
   -H "Authorization: Bearer <auth-key>" \
-  -F "model=gpt-image-2" \
+  -F "model=gpt-image-2.5" \
   -F "prompt=把这张图改成赛博朋克夜景风格" \
   -F "n=1" \
   -F "image=@./input.png"
@@ -304,7 +304,7 @@ curl http://localhost:8000/v1/images/edits \
   -H "Authorization: Bearer <auth-key>" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "gpt-image-2",
+    "model": "gpt-image-2.5",
     "prompt": "把这张图改成赛博朋克夜景风格",
     "images": [
       {"image_url": "https://example.com/input.png"}
@@ -318,7 +318,7 @@ curl http://localhost:8000/v1/images/edits \
 
 | 字段          | 说明                                            |
 |:------------|:----------------------------------------------|
-| `model`     | 图片模型， `gpt-image-2`                           |
+| `model`     | 图片模型，默认 `gpt-image-2.5`                     |
 | `prompt`    | 图片编辑提示词                                       |
 | `n`         | 生成数量，当前后端限制为 `1-4`                            |
 | `size`      | 可选；Agnes 支持 `1K`、`2K`、`3K`、`4K` 或兼容尺寸           |
@@ -342,7 +342,7 @@ curl http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <auth-key>" \
   -d '{
-    "model": "gpt-image-2",
+    "model": "gpt-image-2.5",
     "messages": [
       {
         "role": "user",

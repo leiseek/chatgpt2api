@@ -101,10 +101,10 @@ const docs: ApiDoc[] = [
     icon: FileArchive,
     input: [
       ["prompt", "string", "图片生成提示词。"],
-      ["model", "string", "可选，支持 gpt-image-2、codex-gpt-image-2、agnes-image-2.1-flash。"],
+      ["model", "string", "可选，支持 gpt-image-2、codex-gpt-image-2、agnes-image-2.1-flash、gemini-image-2.5-flash（或 imagen-3）。"],
       ["n", "number", "可选，生成数量，当前限制 1-4。"],
       ["size", "string", "可选，图片尺寸。"],
-      ["ratio", "string", "可选，Agnes 支持 1:1、16:9、9:16 等比例。"],
+      ["ratio", "string", "可选，支持 1:1、16:9、9:16 等比例。"],
       ["quality", "string", "可选，默认 auto。"],
       ["response_format", "string", "可选，默认 b64_json。"],
     ],
@@ -116,7 +116,7 @@ const docs: ApiDoc[] = [
     example: (baseUrl: string, key: string) => `curl ${baseUrl}/images/generations \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer ${key}" \\
-  -d '{"model":"gpt-image-2","prompt":"一张极简产品海报","n":1}'`,
+  -d '{"model":"gemini-image-2.5-flash","prompt":"一张极简产品海报","n":1}'`,
   },
   {
     title: "图片编辑",
@@ -126,10 +126,10 @@ const docs: ApiDoc[] = [
     input: [
       ["image", "file | file[] | URL", "参考图，支持 multipart 上传，也支持 JSON 图片链接。"],
       ["prompt", "string", "编辑提示词。"],
-      ["model", "string", "可选，支持 gpt-image-2、codex-gpt-image-2、agnes-image-2.1-flash。"],
+      ["model", "string", "可选，支持 gpt-image-2、codex-gpt-image-2、agnes-image-2.1-flash、gemini-image-2.5-flash。"],
       ["n", "number", "可选，生成数量，当前限制 1-4。"],
       ["size", "string", "可选，图片尺寸。"],
-      ["ratio", "string", "可选，Agnes 支持 1:1、16:9、9:16 等比例。"],
+      ["ratio", "string", "可选，支持 1:1、16:9、9:16 等比例。"],
       ["quality", "string", "可选，默认 auto。"],
     ],
     output: [
@@ -217,7 +217,7 @@ const docs: ApiDoc[] = [
   },
 ];
 
-const usableModels = ["gpt-image-2", "codex-gpt-image-2", "auto", "gpt-5", "gpt-5-1", "gpt-5-2", "gpt-5-3", "gpt-5-3-mini", "gpt-5-mini"];
+const usableModels = ["gpt-image-2", "codex-gpt-image-2", "gemini-image-2.5-flash", "agnes-image-2.1-flash", "auto", "gpt-5", "gpt-5-1", "gpt-5-2", "gpt-5-3", "gpt-5-3-mini", "gpt-5-mini"];
 
 function ParamTable({ rows }: { rows: ParamRow[] }) {
   return (

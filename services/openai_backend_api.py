@@ -65,7 +65,7 @@ class ChatRequirements:
     raw_finalize: Optional[Dict[str, Any]] = None
 
 
-DEFAULT_CLIENT_VERSION = "prod-a194cd50d4416d3c0b47c740f206b12ce60f5887"
+DEFAULT_CLIENT_VERSION = "prod-ad7d81d8f7e3f450d1b5e94016615ce964f80dc6"
 DEFAULT_CLIENT_BUILD_NUMBER = "6708908"
 DEFAULT_POW_SCRIPT = "https://chatgpt.com/backend-api/sentinel/sdk.js"
 CODEX_IMAGE_MODEL = "codex-gpt-image-2.5"
@@ -76,13 +76,13 @@ CODEX_IMAGE_MODELS = {
     "codex-gpt-image-2",
 }
 CODEX_RESPONSES_MODEL = "gpt-5.5"
-SEARCH_MODEL = "gpt-5-5"
+SEARCH_MODEL = "auto"
 SEARCH_TIMEOUT_SECS = 300.0
 SEARCH_POLL_INTERVAL_SECS = 3.0
 SEARCH_DONE_STATUS = {"finished_successfully", "finished_partial_completion"}
 SEARCH_CONVERSATION_ID_RE = re.compile(r'"conversation_id"\s*:\s*"([^"]+)"')
 SEARCH_URL_RE = re.compile(r"https?://[^\s\"'<>）)\]}]+")
-EDITABLE_FILE_MODEL = "gpt-5-5-thinking"
+EDITABLE_FILE_MODEL = "auto"
 EDITABLE_FILE_THINKING_EFFORT = "extended"
 EDITABLE_FILE_TIMEOUT_SECS = 1200.0
 EDITABLE_FILE_POLL_INTERVAL_SECS = 5.0
@@ -365,7 +365,7 @@ class OpenAIBackendAPI:
             "type": plan_type,
             "quota": quota,
             "limits_progress": limits_progress,
-            "default_model_slug": init_payload.get("default_model_slug"),
+            "default_model_slug": init_payload.get("default_model_slug") or init_payload.get("intended_default_model_slug"),
             "restore_at": restore_at,
             "status": "限流" if quota == 0 else "正常",
         }
@@ -567,17 +567,65 @@ class OpenAIBackendAPI:
             payload["thinking_effort"] = normalized_effort
         return payload
 
+    def _resolve_dynamic_upstream_model(self) -> str:
+        """动态解析当前账号的上游模型。"""
+        # 1. 检查全局配置（如果显式配置了且不是已过期的 gpt-5-5 / auto，则使用该配置）
+        cfg_model = config.default_upstream_model_name
+        if cfg_model and cfg_model.lower() not in {"auto", "gpt-5-5", ""}:
+            return cfg_model
+
+        # 2. 检查内存缓存
+        if getattr(self, "_dynamic_upstream_model", None):
+            return self._dynamic_upstream_model
+
+        # 3. 优先使用当前账号中已缓存的 default_model_slug
+        account_model = str((self.account or {}).get("default_model_slug") or "").strip()
+        if account_model and account_model.lower() not in {"auto", "gpt-5-5", ""}:
+            self._dynamic_upstream_model = account_model
+            return account_model
+
+        # 4. 尝试从 /backend-api/conversation/init 动态获取 default_model_slug
+        if self.access_token:
+            try:
+                init_data = self._get_conversation_init()
+                slug = str(init_data.get("default_model_slug") or init_data.get("intended_default_model_slug") or "").strip()
+                if slug and slug.lower() not in {"gpt-5-5", ""}:
+                    self._dynamic_upstream_model = slug
+                    account_service.update_account(self.access_token, {"default_model_slug": slug})
+                    return slug
+            except Exception as exc:
+                logger.debug({
+                    "event": "dynamic_upstream_model_init_error",
+                    "error": str(exc),
+                })
+
+        # 5. 回退尝试从 models 接口获取 default_model_slug
+        try:
+            models_data = self.list_models()
+            for item in models_data.get("data", []):
+                slug = str(item.get("id") or "").strip()
+                if slug and slug.lower() not in {"gpt-5-5", ""}:
+                    self._dynamic_upstream_model = slug
+                    return slug
+        except Exception as exc:
+            logger.debug({
+                "event": "dynamic_upstream_model_models_error",
+                "error": str(exc),
+            })
+
+        return "auto"
+
     def _image_model_settings(self, model: str) -> tuple[str, str]:
         """把标准图片模型名映射为上游模型及思考强度。"""
         _, base_model = split_image_model(model)
         if not base_model:
-            return "auto", ""
+            return self._resolve_dynamic_upstream_model(), ""
         if base_model in {"gpt-image-2.5", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"}:
-            upstream_model = config.default_upstream_model_name
+            upstream_model = self._resolve_dynamic_upstream_model()
         elif base_model in CODEX_IMAGE_MODELS:
             upstream_model = base_model
         else:
-            return "auto", ""
+            return self._resolve_dynamic_upstream_model(), ""
         model_name, separator, suffix = upstream_model.rpartition("-")
         if separator and suffix.lower() in {"standard", "extended", "max"}:
             return model_name, suffix.lower()
@@ -875,14 +923,15 @@ class OpenAIBackendAPI:
             retry_after = int(retry_after_header) if str(retry_after_header or "").isdigit() else None
             raise UpstreamHTTPError(path, error.code, body, retry_after=retry_after) from error
 
-    def _prepare_image_conversation(self, prompt: str, requirements: ChatRequirements, model: str) -> str:
+    def _prepare_image_conversation(self, prompt: str, requirements: ChatRequirements, model: str,
+                                    parent_message_id: str = "client-created-root") -> str:
         """为图片生成准备 conduit token。"""
         path = "/backend-api/f/conversation/prepare"
         upstream_model, thinking_effort = self._image_model_settings(model)
         payload = {
             "action": "next",
             "fork_from_shared_post": False,
-            "parent_message_id": new_uuid(),
+            "parent_message_id": parent_message_id,
             "model": upstream_model,
             "client_prepare_state": "success",
             "timezone_offset_min": -480,
@@ -984,7 +1033,8 @@ class OpenAIBackendAPI:
         }
 
     def _start_image_generation(self, prompt: str, requirements: ChatRequirements, conduit_token: str, model: str,
-                                references: Optional[list[Dict[str, Any]]] = None) -> requests.Response:
+                                references: Optional[list[Dict[str, Any]]] = None,
+                                parent_message_id: str = "client-created-root") -> requests.Response:
         """启动图片生成或编辑的 SSE 请求。"""
         upstream_model, thinking_effort = self._image_model_settings(model)
         references = references or []
@@ -1023,7 +1073,7 @@ class OpenAIBackendAPI:
                 "content": content,
                 "metadata": metadata,
             }],
-            "parent_message_id": new_uuid(),
+            "parent_message_id": parent_message_id,
             "model": upstream_model,
             "client_prepare_state": "sent",
             "timezone_offset_min": -480,
@@ -2624,9 +2674,10 @@ class OpenAIBackendAPI:
         self._report_progress("getting_token")
         requirements = self._get_chat_requirements()
         self._report_progress("preparing_conversation")
-        conduit_token = self._prepare_image_conversation(prompt, requirements, model)
+        parent_message_id = "client-created-root"
+        conduit_token = self._prepare_image_conversation(prompt, requirements, model, parent_message_id=parent_message_id)
         self._report_progress("starting_generation")
-        response = self._start_image_generation(prompt, requirements, conduit_token, model, references)
+        response = self._start_image_generation(prompt, requirements, conduit_token, model, references, parent_message_id=parent_message_id)
         self._report_progress("generating")
         yield from self._iter_sse_payloads_capped(response, float(config.image_poll_timeout_secs))
 

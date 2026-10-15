@@ -215,6 +215,16 @@ def _heal_split_cookie_payloads(
                         break
                 base["label"] = re.sub(r"\s+\d+$", "", str(base.get("label") or "Gemini Pro"))
                 return [base], [healed_json_str]
+            elif is_cookie_format or is_gemini:
+                gemini_account = {
+                    "access_token": healed_json_str,
+                    "provider": "gemini",
+                    "source_type": "session_cookie",
+                    "type": "Gemini",
+                    "quota_mode": "external",
+                    "label": "Gemini Pro",
+                }
+                return [gemini_account], [healed_json_str]
             return [], [healed_json_str]
 
     return account_payloads, tokens
@@ -319,7 +329,8 @@ def create_router() -> APIRouter:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
         refresh_tokens = [
             token for token in tokens
-            if not account_service.is_external_image_account(account_service.get_account(token))
+            if (acc := account_service.get_account(token)) is not None
+            and not account_service.is_external_image_account(acc)
         ]
         if refresh_tokens:
             refresh_result = account_service.refresh_accounts(refresh_tokens)

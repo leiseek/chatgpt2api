@@ -1365,21 +1365,21 @@ def _gemini_public_error(exc: GeminiWebImageError) -> ImageGenerationError:
         status_code = 429
         error_type = "rate_limit_error"
         code = "insufficient_quota"
-        message = "The configured Gemini account has reached its generation quota."
+        message = str(exc) if str(exc) and "Gemini Web quota exceeded" not in str(exc) else "The configured Gemini account has reached its generation quota."
     elif exc.code == "rate_limit":
         status_code = 429
         error_type = "rate_limit_error"
         code = "rate_limit"
-        message = "The Gemini image service is rate limited. Please try again later."
+        message = str(exc) or "The Gemini image service is rate limited. Please try again later."
     elif exc.code == "no_image_generated":
         status_code = 502
         error_type = "server_error"
         code = "no_image_generated"
-        message = "The Gemini image service did not return an image."
+        message = str(exc) if str(exc) and str(exc) != "Gemini Web did not return any generated image" else "The Gemini image service did not return an image."
     elif status_code == 400:
         error_type = "invalid_request_error"
         code = "invalid_request_error"
-        message = "The Gemini image request was rejected by the upstream service."
+        message = str(exc) or "The Gemini image request was rejected by the upstream service."
     elif status_code in {504, 408}:
         status_code = 504
         error_type = "server_error"
@@ -1470,7 +1470,7 @@ def _generate_single_gemini_image(
                 request.progress_callback("generating_image")
             provider = GeminiWebImageProvider(token, account=account)
             result = provider.generate(
-                prompt=prompt_with_global_system(request.prompt),
+                prompt=request.prompt,
                 size=request.size or "1024x1024",
                 ratio=request.ratio,
                 images=request.images or None,

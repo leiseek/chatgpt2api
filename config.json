@@ -11,7 +11,7 @@
     "info",
     "warning"
   ],
-  "proxy": "http://192.168.1.41:20171",
+  "proxy": "http://127.0.0.1:10808",
   "proxy_runtime": {
     "enabled": false,
     "egress_mode": "single_proxy",
@@ -37,7 +37,7 @@
   "base_url": "",
   "sensitive_words": [],
   "global_system_prompt": "",
-  "default_upstream_model_name": "gpt-5-5",
+  "default_upstream_model_name": "auto",
   "default_thinking_effort": "auto",
   "ai_review": {
     "enabled": false,

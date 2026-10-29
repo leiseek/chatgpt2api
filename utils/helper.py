@@ -35,13 +35,15 @@ CODEX_IMAGE_MODELS = {
     "codex-gpt-image-2",
 }
 AGNES_IMAGE_MODEL = "agnes-image-2.1-flash"
-GEMINI_IMAGE_MODEL = "gemini-image-2.5-flash"
+GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image"
 GEMINI_IMAGE_MODELS = {
     GEMINI_IMAGE_MODEL,
-    "imagen-3",
-    "imagen-3.0-generate-002",
+    "gemini-image-2.5-flash",
+    "gemini-2.5-flash-image",
     "gemini-2.0-flash-image",
     "gemini-image",
+    "imagen-3",
+    "imagen-3.0-generate-002",
 }
 BASE_IMAGE_MODELS = {
     *CHATGPT_BASE_IMAGE_MODELS,

@@ -1359,8 +1359,8 @@ def _gemini_public_error(exc: GeminiWebImageError) -> ImageGenerationError:
     elif exc.code == "token_invalid":
         status_code = 401
         error_type = "authentication_error"
-        code = "invalid_session_cookie"
-        message = "The configured Gemini Web session cookie was rejected or expired."
+        code = "token_invalid"
+        message = "The configured Gemini OAuth credentials were rejected or expired."
     elif exc.code == "insufficient_quota":
         status_code = 429
         error_type = "rate_limit_error"
@@ -1474,6 +1474,7 @@ def _generate_single_gemini_image(
                 size=request.size or "1024x1024",
                 ratio=request.ratio,
                 images=request.images or None,
+                model=request.model,
             )
             data = format_image_result(
                 result.get("data") if isinstance(result.get("data"), list) else [],

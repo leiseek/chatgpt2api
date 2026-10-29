@@ -147,16 +147,33 @@ function getAccountJsonAccount(value: unknown): AccountImportPayload | null {
     return null;
   }
   const raw = value as Record<string, unknown>;
-  const tokenValue = raw.access_token ?? raw.accessToken;
+  const tokenValue =
+    raw.access_token ??
+    raw.accessToken ??
+    raw.refresh_token ??
+    raw.refreshToken;
   const token = typeof tokenValue === "string" ? tokenValue.trim() : "";
   if (!token) {
     return null;
   }
 
+  const isAntigravity =
+    token.startsWith("1//") ||
+    raw.provider === "gemini" ||
+    raw.provider === "antigravity" ||
+    raw.account_type === "Antigravity";
+
+  const providerVal =
+    raw.provider === "chatgpt" || raw.provider === "agnes" || raw.provider === "gemini"
+      ? raw.provider
+      : undefined;
+
   const payload: AccountImportPayload = {
     ...raw,
     access_token: token,
-    source_type: "codex",
+    refresh_token: typeof raw.refresh_token === "string" ? raw.refresh_token : (token.startsWith("1//") ? token : undefined),
+    source_type: isAntigravity ? "oauth" : "codex",
+    provider: isAntigravity ? "gemini" : providerVal,
   };
   delete payload.accessToken;
   if (payload.type === "codex") {
@@ -614,13 +631,13 @@ export function AccountImportDialog({ disabled, onImported }: AccountImportDialo
           <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-6 text-stone-600 space-y-1">
             <div className="font-medium text-stone-800">获取说明</div>
             <p>
-              从浏览器登录 <a href="https://gemini.google.com" target="_blank" rel="noreferrer" className="font-medium text-stone-900 underline">gemini.google.com</a> 后，打开 F12 开发者工具（Application → Cookies 或 Network 请求标头），复制完整的 Cookie 字符串（Google 鉴权必须同时包含 <code className="rounded bg-stone-200 px-1">__Secure-1PSID</code> 与 <code className="rounded bg-stone-200 px-1">__Secure-1PSIDTS</code>）。也支持直接粘贴 Cookie-Editor 插件导出的 JSON。
+              支持输入 <code className="rounded bg-stone-200 px-1">local-agy</code> 自动读取本机 agy CLI / Antigravity 授权凭据；或粘贴包含 <code className="rounded bg-stone-200 px-1">refresh_token</code> 的凭据 JSON；亦支持直接粘贴 OAuth Refresh Token（如 <code className="rounded bg-stone-200 px-1">1//...</code>）。后端将走 Google Cloud Code 直连通道使用 <code className="rounded bg-stone-200 px-1">gemini-3.1-flash-image</code> 原生生图，无需逆向网页 Cookie。
             </p>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-stone-700">Gemini Web Cookie</label>
+            <label className="text-sm font-medium text-stone-700">Gemini (agy CLI 授权凭据)</label>
             <Textarea
-              placeholder="粘贴完整 Cookie 字符串（例如包含 __Secure-1PSID=...; __Secure-1PSIDTS=...）或 Cookie-Editor 导出的 JSON..."
+              placeholder="输入 local-agy（自动读取本机凭据）或粘贴 JSON / Refresh Token..."
               value={geminiCookieInput}
               onChange={(event) => setGeminiCookieInput(event.target.value)}
               className="min-h-32 resize-none rounded-xl border-stone-200 font-mono text-xs"
@@ -926,8 +943,8 @@ export function AccountImportDialog({ disabled, onImported }: AccountImportDialo
           onClick={() => setMethod("agnes")}
         />
         <MethodCard
-          title="导入 Gemini Web Cookie"
-          description="接入 Google Gemini 逆向生图，自动消除星标水印，支持独立专属代理或本地直连。"
+          title="导入 Gemini (agy CLI 授权)"
+          description="接入 Google Cloud Code 官方通道，使用 gemini-3.1-flash-image 高画质原生生图，支持 OAuth 凭据自动续期。"
           icon={Sparkles}
           onClick={() => setMethod("gemini")}
         />

@@ -107,3 +107,106 @@ def test_generate_single_gemini_image_success():
         assert len(outputs[0].data) == 1
         mock_mark.assert_called_once_with(fake_token, True, release_slot=False)
         mock_release.assert_called_once_with(fake_token)
+
+
+from services.image_providers.gemini_cloudcode import (
+    GeminiImageProvider,
+    GeminiImageError,
+    _parse_gemini_token_input,
+)
+
+
+def test_parse_gemini_token_input():
+    # Raw refresh token
+    res1 = _parse_gemini_token_input("1//test_refresh_token_123")
+    assert res1["refresh_token"] == "1//test_refresh_token_123"
+
+    # JSON input
+    json_token = '{"refresh_token": "1//rt_val", "project_id": "proj-abc", "client_id": "cid", "client_secret": "csec"}'
+    res2 = _parse_gemini_token_input(json_token)
+    assert res2["refresh_token"] == "1//rt_val"
+    assert res2["project_id"] == "proj-abc"
+    assert res2["client_id"] == "cid"
+    assert res2["client_secret"] == "csec"
+
+    # local-agy keyword
+    res3 = _parse_gemini_token_input("local-agy")
+    assert isinstance(res3, dict)
+
+
+def test_gemini_cloudcode_provider_generate_success():
+    provider = GeminiImageProvider("1//test_refresh", account={"project_id": "test-project"})
+    provider.access_token = "ya29.fake_access_token"
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "inlineData": {
+                                "mimeType": "image/jpeg",
+                                "data": "base64imagecontent123",
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+
+    with patch.object(provider.session, "post", return_value=mock_resp):
+        res = provider.generate("A cute golden retriever", size="1024x1024", ratio="1:1")
+        assert "data" in res
+        assert len(res["data"]) == 1
+        assert res["data"][0]["b64_json"] == "base64imagecontent123"
+        assert res["data"][0]["revised_prompt"] == "A cute golden retriever"
+
+
+def test_gemini_cloudcode_provider_auto_refresh_on_401():
+    provider = GeminiImageProvider("1//test_refresh", account={"project_id": "test-project"})
+    provider.access_token = "ya29.expired_token"
+
+    resp_401 = MagicMock()
+    resp_401.status_code = 401
+
+    resp_200 = MagicMock()
+    resp_200.status_code = 200
+    resp_200.json.return_value = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "inlineData": {
+                                "mimeType": "image/jpeg",
+                                "data": "refreshed_image_data",
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+
+    with patch.object(provider, "refresh_access_token", return_value="ya29.new_token") as mock_refresh, \
+         patch.object(provider.session, "post", side_effect=[resp_401, resp_200]):
+        res = provider.generate("A cute cat")
+        assert mock_refresh.called
+        assert res["data"][0]["b64_json"] == "refreshed_image_data"
+
+
+def test_gemini_cloudcode_provider_rate_limit_429():
+    provider = GeminiImageProvider("1//test_refresh", account={"project_id": "test-project"})
+    provider.access_token = "ya29.valid"
+
+    resp_429 = MagicMock()
+    resp_429.status_code = 429
+
+    with patch.object(provider.session, "post", return_value=resp_429):
+        with pytest.raises(GeminiImageError) as exc_info:
+            provider.generate("test prompt")
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.code == "rate_limit"

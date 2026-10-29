@@ -139,7 +139,7 @@ class AccountService:
             return "chatgpt"
         if provider in {"agnes", "agnes_ai"}:
             return "agnes"
-        if provider in {"gemini", "gemini_web", "google"}:
+        if provider in {"gemini", "gemini_web", "google", "antigravity"}:
             return "gemini"
         raise ValueError(f"unsupported account provider: {provider}")
 
@@ -154,7 +154,10 @@ class AccountService:
         account_type = cls._normalize_account_type(account.get("type"))
         if source in {"agnes", "agnes_ai"} or account_type == "Agnes":
             return "agnes"
-        if source in {"gemini", "gemini_web", "google"} or account_type == "Gemini":
+        if source in {"gemini", "gemini_web", "google", "antigravity"} or account_type in {"Gemini", "Antigravity"}:
+            return "gemini"
+        rt = str(account.get("refresh_token") or account.get("refreshToken") or "").strip()
+        if rt.startswith("1//"):
             return "gemini"
         return "chatgpt"
 
@@ -256,27 +259,52 @@ class AccountService:
     def _normalize_account(self, item: dict) -> dict | None:
         if not isinstance(item, dict):
             return None
-        access_token = str(item.get("access_token") or item.get("accessToken") or "").strip()
+        access_token = str(
+            item.get("access_token")
+            or item.get("accessToken")
+            or item.get("refresh_token")
+            or item.get("refreshToken")
+            or ""
+        ).strip()
         if not access_token or len(access_token) < 3 or access_token in {"[", "{", "]", "}", "null", "undefined"}:
             return None
         normalized = dict(item)
         normalized.pop("accessToken", None)
         normalized["access_token"] = access_token
+        if item.get("refresh_token") or item.get("refreshToken"):
+            normalized["refresh_token"] = str(item.get("refresh_token") or item.get("refreshToken")).strip()
         if str(normalized.get("type") or "").strip().lower() == "codex":
             normalized["export_type"] = "codex"
             normalized.pop("type", None)
         normalized["type"] = normalized.get("type") or "free"
         provider = self.account_provider(normalized)
         if provider == "gemini":
-            from services.image_providers.gemini_web import _parse_cookie_input
-            cookies, _ = _parse_cookie_input(access_token)
-            if not cookies or ("__Secure-1PSID" not in cookies and "SID" not in cookies and "__Secure-3PSID" not in cookies):
-                try:
-                    p = json.loads(access_token)
-                    if not (isinstance(p, list) and any(isinstance(x, dict) and "name" in x for x in p)):
+            from services.image_providers.gemini_cloudcode import _parse_gemini_token_input
+            parsed_token = _parse_gemini_token_input(access_token, normalized)
+            raw_stripped = access_token.strip()
+            if (
+                raw_stripped in {"```json", "```", "{", "[", "}", "]", ""}
+                or (raw_stripped.startswith('"') and raw_stripped.endswith(","))
+            ):
+                return None
+            if not parsed_token.get("access_token") and not parsed_token.get("refresh_token") and raw_stripped not in {"local-agy", "local"}:
+                from services.image_providers.gemini_web import _parse_cookie_input
+                cookies, _ = _parse_cookie_input(access_token)
+                if not cookies or ("__Secure-1PSID" not in cookies and "SID" not in cookies and "__Secure-3PSID" not in cookies):
+                    try:
+                        p = json.loads(access_token)
+                        if not (isinstance(p, list) and any(isinstance(x, dict) and "name" in x for x in p)):
+                            return None
+                    except Exception:
                         return None
-                except Exception:
-                    return None
+            if parsed_token.get("refresh_token"):
+                normalized["refresh_token"] = parsed_token["refresh_token"]
+            if parsed_token.get("project_id"):
+                normalized["project_id"] = parsed_token["project_id"]
+            if parsed_token.get("client_id"):
+                normalized["client_id"] = parsed_token["client_id"]
+            if parsed_token.get("client_secret"):
+                normalized["client_secret"] = parsed_token["client_secret"]
         normalized["provider"] = provider
         if provider == "agnes":
             normalized["type"] = "Agnes"
@@ -295,7 +323,7 @@ class AccountService:
         if provider == "agnes":
             normalized["source_type"] = "api_key"
         elif provider == "gemini":
-            normalized["source_type"] = "session_cookie"
+            normalized["source_type"] = str(source_type or "oauth").strip().lower()
         else:
             normalized["source_type"] = self._normalize_source_type(source_type)
         limits_progress = normalized.get("limits_progress")
@@ -965,7 +993,7 @@ class AccountService:
             return list(self._accounts)
 
     def keepalive_gemini_accounts(self) -> None:
-        """Periodic keepalive for Gemini Web accounts to rotate and refresh __Secure-1PSIDTS."""
+        """Periodic keepalive for Gemini accounts to verify credentials and rotate OAuth tokens."""
         with self._lock:
             gemini_accounts = [
                 dict(acc) for acc in self._accounts.values()
@@ -973,14 +1001,14 @@ class AccountService:
             ]
         for acc in gemini_accounts:
             token = str(acc.get("access_token") or "").strip()
-            if not token:
+            refresh_token = str(acc.get("refresh_token") or "").strip()
+            if not token and not refresh_token:
                 continue
             try:
-                from services.image_providers.gemini_web import GeminiWebImageProvider
-                with GeminiWebImageProvider(token, account=acc, timeout=20.0) as provider:
-                    snlm0e = provider._ensure_snlm0e()
-                    if snlm0e:
-                        provider._sync_cookies_back()
+                from services.image_providers.gemini_cloudcode import GeminiImageProvider
+                with GeminiImageProvider(token, account=acc, timeout=20.0) as provider:
+                    if refresh_token and (not provider.access_token or not provider.access_token.startswith("ya29.")):
+                        provider.refresh_access_token()
             except Exception as exc:
                 logger.debug(f"Gemini keepalive notice for account: {exc}")
 

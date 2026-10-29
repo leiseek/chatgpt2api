@@ -122,7 +122,13 @@ class OAuthLoginFinishRequest(BaseModel):
 
 
 def _account_payload_token(item: dict[str, Any]) -> str:
-    return str(item.get("access_token") or item.get("accessToken") or "").strip()
+    return str(
+        item.get("access_token")
+        or item.get("accessToken")
+        or item.get("refresh_token")
+        or item.get("refreshToken")
+        or ""
+    ).strip()
 
 
 def _unique_tokens(tokens: list[str]) -> list[str]:
@@ -182,7 +188,7 @@ def _heal_split_cookie_payloads(
     account_payloads: list[dict[str, Any]], tokens: list[str]
 ) -> tuple[list[dict[str, Any]], list[str]]:
     tokens_to_test = [
-        str(item.get("access_token") or item.get("accessToken") or "").strip()
+        _account_payload_token(item)
         for item in account_payloads
     ] if account_payloads else [str(t or "").strip() for t in tokens if str(t or "").strip()]
 
@@ -195,6 +201,32 @@ def _heal_split_cookie_payloads(
     healed_json_str, parsed = _extract_json_or_cookie(combined_text)
 
     if healed_json_str and parsed:
+        is_rt_array = isinstance(parsed, list) and any(
+            isinstance(x, dict) and ("refresh_token" in x or "refreshToken" in x) for x in parsed
+        )
+        if is_rt_array:
+            accounts = []
+            tokens_out = []
+            for x in parsed:
+                if isinstance(x, dict) and ("refresh_token" in x or "refreshToken" in x):
+                    rt = str(x.get("refresh_token") or x.get("refreshToken") or "").strip()
+                    if not rt:
+                        continue
+                    em = str(x.get("email") or "").strip()
+                    accounts.append({
+                        "access_token": rt,
+                        "refresh_token": rt,
+                        "provider": "gemini",
+                        "source_type": "oauth",
+                        "type": "Gemini",
+                        "quota_mode": "external",
+                        "email": em or None,
+                        "label": f"Gemini ({em})" if em else "Gemini Pro",
+                    })
+                    tokens_out.append(rt)
+            if accounts:
+                return accounts, tokens_out
+
         is_cookie_format = False
         if isinstance(parsed, list) and any(
             isinstance(x, dict) and ("name" in x or "value" in x or "domain" in x) for x in parsed
@@ -219,7 +251,7 @@ def _heal_split_cookie_payloads(
                 gemini_account = {
                     "access_token": healed_json_str,
                     "provider": "gemini",
-                    "source_type": "session_cookie",
+                    "source_type": "oauth",
                     "type": "Gemini",
                     "quota_mode": "external",
                     "label": "Gemini Pro",

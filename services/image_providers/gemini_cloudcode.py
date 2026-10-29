@@ -546,7 +546,10 @@ class GeminiImageProvider:
                 code="image_response_invalid",
             ) from exc
 
-        candidates = result_json.get("candidates") or []
+        # Cloud Code wraps the GenerateContentResponse in a "response" envelope.
+        envelope = result_json.get("response")
+        payload = envelope if isinstance(envelope, dict) else result_json
+        candidates = payload.get("candidates") or []
         res_parts = candidates[0].get("content", {}).get("parts", []) if candidates else []
         image_data: str | None = None
         for p in res_parts:

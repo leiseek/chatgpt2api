@@ -20,7 +20,7 @@ from utils.url_safety import (
     validate_outbound_http_url,
 )
 
-DEFAULT_IMAGE_MODEL = "gpt-image-2.5"
+DEFAULT_IMAGE_MODEL = "gpt-image-2.6"
 CHATGPT_BASE_IMAGE_MODELS = {
     "gpt-image-2.6",
     "gpt-image-2.5",

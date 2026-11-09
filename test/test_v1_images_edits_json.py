@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.ai as ai_module
+from utils.helper import DEFAULT_IMAGE_MODEL
 
 AUTH_HEADERS = {"Authorization": "Bearer chatgpt2api"}
 PNG_DATA_URL = "data:image/png;base64," + base64.b64encode(b"fake-png").decode("ascii")
@@ -39,7 +40,7 @@ class ImageEditsJsonApiTests(unittest.TestCase):
     def test_json_model_omitted_uses_existing_default_logic(self):
         response = self.client.post("/v1/images/edits", headers=AUTH_HEADERS, json={"prompt": "未传 model", "image": PNG_DATA_URL})
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(self.calls[0]["model"], "gpt-image-2.5")
+        self.assertEqual(self.calls[0]["model"], DEFAULT_IMAGE_MODEL)
 
     def test_json_model_is_not_overwritten_when_provided(self):
         response = self.client.post(

@@ -55,7 +55,7 @@ const IMAGE_MODEL_STORAGE_KEY = "chatgpt2api:image_last_model";
 const IMAGE_COUNT_STORAGE_KEY = "chatgpt2api:image_last_count";
 const SCROLL_POSITIONS_STORAGE_KEY = "chatgpt2api:image_scroll_positions";
 const SCROLL_TO_LATEST_THRESHOLD = 160;
-const CHATGPT_IMAGE_MODEL = "gpt-image-2.5";
+const CHATGPT_IMAGE_MODEL = "gpt-image-2.6";
 const AGNES_IMAGE_MODEL = "agnes-image-2.1-flash";
 const GEMINI_IMAGE_MODEL = "gemini-image-2.5-flash";
 

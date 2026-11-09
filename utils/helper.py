@@ -22,6 +22,7 @@ from utils.url_safety import (
 
 DEFAULT_IMAGE_MODEL = "gpt-image-2.5"
 CHATGPT_BASE_IMAGE_MODELS = {
+    "gpt-image-2.6",
     "gpt-image-2.5",
     "gpt-image-2.5-flare",
     "gpt-image-2.5-sunburst",
@@ -29,6 +30,7 @@ CHATGPT_BASE_IMAGE_MODELS = {
 }
 CODEX_IMAGE_MODEL = "codex-gpt-image-2.5"
 CODEX_IMAGE_MODELS = {
+    "codex-gpt-image-2.6",
     "codex-gpt-image-2.5",
     "codex-gpt-image-2.5-flare",
     "codex-gpt-image-2.5-sunburst",

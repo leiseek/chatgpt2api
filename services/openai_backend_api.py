@@ -23,7 +23,16 @@ from PIL import Image
 from services.account_service import account_service
 from services.config import config
 from services.proxy_service import proxy_settings
-from utils.helper import UpstreamHTTPError, ensure_ok, iter_sse_payloads, new_uuid, split_image_model
+from utils.helper import (
+    CHATGPT_BASE_IMAGE_MODELS,
+    CODEX_IMAGE_MODELS,
+    DEFAULT_IMAGE_MODEL,
+    UpstreamHTTPError,
+    ensure_ok,
+    iter_sse_payloads,
+    new_uuid,
+    split_image_model,
+)
 from utils.log import logger
 from utils.pow import build_legacy_requirements_token, build_proof_token, parse_pow_resources
 from utils.turnstile import solve_turnstile_token
@@ -68,13 +77,6 @@ class ChatRequirements:
 DEFAULT_CLIENT_VERSION = "prod-ad7d81d8f7e3f450d1b5e94016615ce964f80dc6"
 DEFAULT_CLIENT_BUILD_NUMBER = "6708908"
 DEFAULT_POW_SCRIPT = "https://chatgpt.com/backend-api/sentinel/sdk.js"
-CODEX_IMAGE_MODEL = "codex-gpt-image-2.5"
-CODEX_IMAGE_MODELS = {
-    "codex-gpt-image-2.5",
-    "codex-gpt-image-2.5-flare",
-    "codex-gpt-image-2.5-sunburst",
-    "codex-gpt-image-2",
-}
 CODEX_RESPONSES_MODEL = "gpt-5.5"
 SEARCH_MODEL = "auto"
 SEARCH_TIMEOUT_SECS = 300.0
@@ -620,7 +622,7 @@ class OpenAIBackendAPI:
         _, base_model = split_image_model(model)
         if not base_model:
             return self._resolve_dynamic_upstream_model(), ""
-        if base_model in {"gpt-image-2.5", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"}:
+        if base_model in CHATGPT_BASE_IMAGE_MODELS:
             upstream_model = self._resolve_dynamic_upstream_model()
         elif base_model in CODEX_IMAGE_MODELS:
             upstream_model = base_model
@@ -838,10 +840,10 @@ class OpenAIBackendAPI:
             raise RuntimeError("access_token is required for codex image endpoints")
         self._ensure_codex_source_account()
         path = "/backend-api/codex/responses"
-        tool_model = "gpt-image-2.5"
+        tool_model = DEFAULT_IMAGE_MODEL
         if model:
             _, base_model = split_image_model(model)
-            if base_model in {"gpt-image-2.5", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"}:
+            if base_model in CHATGPT_BASE_IMAGE_MODELS:
                 tool_model = base_model
             elif base_model in CODEX_IMAGE_MODELS:
                 tool_model = base_model.removeprefix("codex-")
